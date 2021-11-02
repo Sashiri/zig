@@ -57,6 +57,7 @@ const UCHAR = windows.UCHAR;
 const FARPROC = windows.FARPROC;
 const INIT_ONCE_FN = windows.INIT_ONCE_FN;
 const PMEMORY_BASIC_INFORMATION = windows.PMEMORY_BASIC_INFORMATION;
+const FileType = windows.FileType;
 
 pub extern "kernel32" fn AddVectoredExceptionHandler(First: c_ulong, Handler: ?VECTORED_EXCEPTION_HANDLER) callconv(WINAPI) ?*anyopaque;
 pub extern "kernel32" fn RemoveVectoredExceptionHandler(Handle: HANDLE) callconv(WINAPI) c_ulong;
@@ -199,18 +200,9 @@ pub extern "kernel32" fn GetFileInformationByHandleEx(
     in_dwBufferSize: DWORD,
 ) callconv(WINAPI) BOOL;
 
-const WindowsFDTypes = enum(DWORD) 
-{
-    FILE_TYPE_UNKNOWN = 0x0000,
-    FILE_TYPE_DISK = 0x0001,
-    FILE_TYPE_CHAR = 0x0002,
-    FILE_TYPE_PIPE = 0x0003,
-    FILE_TYPE_REMOTE = 0x8000,
-};
-
 pub extern "kernel32" fn GetFileType(
     hFile: HANDLE
-) callconv(WINAPI) WindowsFDTypes;
+) callconv(WINAPI) FileType;
 
 pub extern "kernel32" fn GetFinalPathNameByHandleW(
     hFile: HANDLE,
