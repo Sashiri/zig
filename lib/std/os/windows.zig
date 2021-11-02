@@ -373,7 +373,7 @@ pub fn GetQueuedCompletionStatus(
             .ABANDONED_WAIT_0 => return GetQueuedCompletionStatusResult.Aborted,
             .OPERATION_ABORTED => return GetQueuedCompletionStatusResult.Cancelled,
             .HANDLE_EOF => return GetQueuedCompletionStatusResult.EOF,
-            
+
             //Ignore socket errors, they will be handled at frame callsite
             .NETNAME_DELETED, .CONNECTION_ABORTED => {},
 
@@ -437,6 +437,7 @@ pub const ReadFileError = error{
     OperationAborted,
     BrokenPipe,
     Unexpected,
+    ConnectionResetByPeer,
 };
 
 /// If buffer's length exceeds what a Windows DWORD integer can hold, it will be broken into
@@ -444,8 +445,16 @@ pub const ReadFileError = error{
 pub fn ReadFile(in_hFile: HANDLE, buffer: []u8, offset: ?u64, io_mode: std.io.ModeOverride) ReadFileError!usize {
     if (io_mode != .blocking) {
         const loop = std.event.Loop.instance.?;
+        const maybeSeekable = switch (kernel32.GetFileType(in_hFile)) {
+            .FILE_TYPE_PIPE => false,
+            else => true,
+        };
+
         // TODO make getting the file position non-blocking
-        const off = if (offset) |o| o else try SetFilePointerEx_CURRENT_get(in_hFile);
+        const off = if (offset) |o| o else if (maybeSeekable) try SetFilePointerEx_CURRENT_get(in_hFile) else 0;
+
+        if (!maybeSeekable) assert(off == 0);
+
         var resume_node = std.event.Loop.ResumeNode.Basic{
             .base = .{
                 .id = .Basic,
@@ -466,7 +475,16 @@ pub fn ReadFile(in_hFile: HANDLE, buffer: []u8, offset: ?u64, io_mode: std.io.Mo
         loop.beginOneEvent();
         suspend {
             // TODO handle buffer bigger than DWORD can hold
-            _ = kernel32.ReadFile(in_hFile, buffer.ptr, @intCast(DWORD, buffer.len), null, &resume_node.base.overlapped);
+            if (kernel32.ReadFile(in_hFile, buffer.ptr, @intCast(DWORD, buffer.len), null, &resume_node.base.overlapped) == 0) {
+                switch (kernel32.GetLastError()) {
+                    .IO_PENDING => {},
+                    else => |err| {
+                        resume @frame();
+                        loop.finishOneEvent();
+                        return unexpectedError(err);
+                    },
+                }
+            }
         }
         var bytes_transferred: DWORD = undefined;
         if (kernel32.GetOverlappedResult(in_hFile, &resume_node.base.overlapped, &bytes_transferred, FALSE) == 0) {
@@ -474,11 +492,12 @@ pub fn ReadFile(in_hFile: HANDLE, buffer: []u8, offset: ?u64, io_mode: std.io.Mo
                 .IO_PENDING => unreachable,
                 .OPERATION_ABORTED => return error.OperationAborted,
                 .BROKEN_PIPE => return error.BrokenPipe,
+                .CONNECTION_ABORTED => return error.ConnectionResetByPeer,
                 .HANDLE_EOF => return @as(usize, bytes_transferred),
                 else => |err| return unexpectedError(err),
             }
         }
-        if (offset == null) {
+        if (offset == null and maybeSeekable) {
             // TODO make setting the file position non-blocking
             const new_off = off + bytes_transferred;
             try SetFilePointerEx_CURRENT(in_hFile, @bitCast(i64, new_off));
