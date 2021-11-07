@@ -1436,7 +1436,7 @@ pub fn acceptEx(listening_s: ws2_32.SOCKET, accepting_s: ws2_32.SOCKET, name: ?*
     var bytesRead: u32 = 0;
 
     loop.beginOneEvent();
-    
+
     suspend {
         if (ws2_32.AcceptEx(
             listening_s,
@@ -1456,8 +1456,7 @@ pub fn acceptEx(listening_s: ws2_32.SOCKET, accepting_s: ws2_32.SOCKET, name: ?*
                     return err;
                 },
             }
-        }
-        else {
+        } else {
             //Completed synchroniously
             resume @frame();
             loop.finishOneEvent();
