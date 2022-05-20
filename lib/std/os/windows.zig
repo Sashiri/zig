@@ -485,7 +485,6 @@ pub fn ReadFile(in_hFile: HANDLE, buffer: []u8, offset: ?u64, io_mode: std.io.Mo
             } else {
                 //Completed synchroniously
                 //@TODO: handle SetFileCompletionNotificationModes
-                unreachable;
             }
         }
 
@@ -610,7 +609,6 @@ pub fn WriteFile(
             } else {
                 //Completed synchroniously
                 //@TODO: handle SetFileCompletionNotificationModes
-                unreachable;
             }
         }
 
