@@ -28,6 +28,7 @@ else if (@hasDecl(root, "event_loop"))
 else
     Mode.blocking;
 pub const is_async = mode != .blocking;
+const is_windows = builtin.os.tag == .windows;
 
 /// This is an enum value to use for I/O mode at runtime, since it takes up zero bytes at runtime,
 /// and makes expressions comptime-known when `is_async` is `false`.
@@ -52,7 +53,7 @@ pub fn getStdOut() File {
     return File{
         .handle = getStdOutHandle(),
         .capable_io_mode = .blocking,
-        .intended_io_mode = default_mode,
+        .intended_io_mode = if(is_windows) .blocking else default_mode,
     };
 }
 
@@ -96,7 +97,7 @@ pub fn getStdIn() File {
     return File{
         .handle = getStdInHandle(),
         .capable_io_mode = .blocking,
-        .intended_io_mode = default_mode,
+        .intended_io_mode = if(is_windows) .blocking else default_mode,
     };
 }
 
