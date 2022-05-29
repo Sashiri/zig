@@ -3969,11 +3969,39 @@ pub fn connect(sock: socket_t, sock_addr: *const sockaddr, len: socklen_t) Conne
             .WSAEINVAL => unreachable,
             .WSAEISCONN => unreachable,
             .WSAENOTSOCK => unreachable,
-            .WSAEWOULDBLOCK => unreachable,
+            .WSAEWOULDBLOCK => {},
             .WSAEACCES => unreachable,
             .WSAENOBUFS => return error.SystemResources,
             .WSAEAFNOSUPPORT => return error.AddressFamilyNotSupported,
             else => |err| return windows.unexpectedWSAError(err),
+        }
+
+        var write_check: [64]socket_t = undefined;
+        write_check[0] = sock;
+        var writable : windows.ws2_32.fd_set = .{
+            .fd_count = 1,
+            .fd_array = write_check,
+        };
+        if (windows.ws2_32.select(0, null, &writable, null, null) == windows.ws2_32.SOCKET_ERROR) {
+            switch (windows.ws2_32.WSAGetLastError()) {
+                .WSAEADDRINUSE => return error.AddressInUse,
+                .WSAEADDRNOTAVAIL => return error.AddressNotAvailable,
+                .WSAECONNREFUSED => return error.ConnectionRefused,
+                .WSAECONNRESET => return error.ConnectionResetByPeer,
+                .WSAETIMEDOUT => return error.ConnectionTimedOut,
+                .WSAEHOSTUNREACH, // TODO: should we return NetworkUnreachable in this case as well?
+                .WSAENETUNREACH,
+                => return error.NetworkUnreachable,
+                .WSAEFAULT => unreachable,
+                .WSAEINVAL => unreachable,
+                .WSAEISCONN => unreachable,
+                .WSAENOTSOCK => unreachable,
+                .WSAEWOULDBLOCK => unreachable,
+                .WSAEACCES => unreachable,
+                .WSAENOBUFS => return error.SystemResources,
+                .WSAEAFNOSUPPORT => return error.AddressFamilyNotSupported,
+                else => |err| return windows.unexpectedWSAError(err),
+            }
         }
         return;
     }

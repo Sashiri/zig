@@ -995,6 +995,7 @@ pub const Loop = struct {
     pub fn connect(self: *Loop, sockfd: os.socket_t, sock_addr: *const os.sockaddr, len: os.socklen_t) os.ConnectError!void {
         os.connect(sockfd, sock_addr, len) catch |err| switch (err) {
             error.WouldBlock => {
+                if(is_windows) unreachable;
                 self.waitUntilFdWritable(sockfd);
                 return os.getsockoptError(sockfd);
             },

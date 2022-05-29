@@ -702,13 +702,19 @@ pub fn tcpConnectToHost(allocator: mem.Allocator, name: []const u8, port: u16) !
 pub fn tcpConnectToAddress(address: Address) !Stream {
     const nonblock = if (std.io.is_async) os.SOCK.NONBLOCK else 0;
     const sock_flags = os.SOCK.STREAM | nonblock |
-        (if (builtin.target.os.tag == .windows) 0 else os.SOCK.CLOEXEC);
+        os.SOCK.CLOEXEC;
     const sockfd = try os.socket(address.any.family, sock_flags, os.IPPROTO.TCP);
     errdefer os.closeSocket(sockfd);
 
     if (std.io.is_async) {
         const loop = std.event.Loop.instance orelse return error.WouldBlock;
         try loop.connect(sockfd, &address.any, address.getOsSockLen());
+        _ = os.windows.CreateIoCompletionPort(
+            sockfd,
+            std.event.Loop.instance.?.os_data.io_port,
+            0,
+            0,
+        ) catch undefined;
     } else {
         try os.connect(sockfd, &address.any, address.getOsSockLen());
     }

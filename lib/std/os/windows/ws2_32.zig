@@ -10,7 +10,6 @@ const USHORT = windows.USHORT;
 const WCHAR = windows.WCHAR;
 const BOOL = windows.BOOL;
 const HANDLE = windows.HANDLE;
-const timeval = windows.timeval;
 const HWND = windows.HWND;
 const INT = windows.INT;
 const SHORT = windows.SHORT;
@@ -442,6 +441,11 @@ pub const PROTECTION_LEVEL_EDGERESTRICTED = 20;
 pub const PROTECTION_LEVEL_RESTRICTED = 30;
 pub const INET_ADDRSTRLEN = 22;
 pub const INET6_ADDRSTRLEN = 65;
+
+pub const timeval = struct {
+    tv_sec: c_long,
+    tv_usec: c_long,
+};
 
 pub const TCP = struct {
     pub const NODELAY = 1;
